@@ -2,6 +2,8 @@ import * as THREE from 'three';
 import { addWall } from "./renderers/addWall";
 import { CompressedPixelFormat } from 'three';
 import { Player } from './game/Player';
+import { addFloorAndCeiling } from './renderers/addFloorAndCeiling';
+import { addSprite } from './renderers/addSprite';
 
 const scene = new THREE.Scene();
 
@@ -27,13 +29,19 @@ for (let x = 0; x < mapLines.length; x++) {
 }
 
 for (let x = 0; x < map.length; x++) {
-    let line = map[x];
-
     for (let y = 0; y < map[x].length; y++) {
         if (map[x][y] == "w") {
             addWall(scene, x, y);
+        } else {
+            addFloorAndCeiling(scene, x, y);
         }
     }
+}
+
+addSprite(renderer, scene, 3, 1);
+
+function isWallOnPosition(x: number, y: number) {
+    return map[Math.floor(x)][Math.floor(y)] == "w" || map[Math.ceil(x)][Math.ceil(y)] == "w";
 }
 
 const player = new Player();
@@ -47,16 +55,21 @@ camera.position.x = player.character.position.x;
 camera.rotation.y = player.character.rotation.value;
 
 
+var light = new THREE.PointLight( 0xffd099, 7, 3.55 );
+light.decay = 4;
+light.position.set( 3, 0, 2 );
+scene.add( light );
+0xff0000
 
 const rotationSpeed = 0.01;
 var rotationA = 0;
 const maxRotationA = 0.05;
 const rotationFriction = 0.008;
 
-var ySpeed = 0.03;
+var ySpeed = 0.009;
 var speedA = 0;
-const maxSpeed = 0.06;
-const speedFriction = 0.02;
+const maxSpeed = 0.03;
+const speedFriction = 0.003;
 
 const keysPressed: number[] = [];
 
@@ -96,14 +109,32 @@ function processKeys() {
     });
 }
 
-function animate() {
-    camera.position.z = player.character.position.y;
-    camera.position.x = player.character.position.x;
+var lightIntensivityChange = light.intensity;
+
+function randomLight() {
+    lightIntensivityChange = 7 + Math.random() * 1.5 - Math.random() * 1;
+}
+
+randomLight();
+
+function tick() {
+    light.position.z = camera.position.z = player.character.position.y;
+    light.position.x = camera.position.x = player.character.position.x;
     camera.rotation.y = player.character.rotation.value;
 
     player.character.rotation.value += rotationA;
-    player.character.position.y += speedA * Math.cos(player.character.rotation.value);
-    player.character.position.x += speedA * Math.sin(player.character.rotation.value);
+    let newPlayerYPosition = player.character.position.y + speedA * Math.cos(player.character.rotation.value);
+    let newPlayerXPosition = player.character.position.x + speedA * Math.sin(player.character.rotation.value);
+
+    
+    if (!isWallOnPosition(newPlayerXPosition, newPlayerYPosition)) {
+        player.character.position.y = newPlayerYPosition;
+        player.character.position.x = newPlayerXPosition;
+    } else if (!isWallOnPosition(player.character.position.x, newPlayerYPosition)) {
+        player.character.position.y = newPlayerYPosition;
+    } else if (!isWallOnPosition(newPlayerXPosition, player.character.position.y)) {
+        player.character.position.x = newPlayerXPosition;
+    }
 
     processKeys();
 
@@ -135,7 +166,34 @@ function animate() {
         }
     }
 
+    console.log(lightIntensivityChange);
+    console.log(light.intensity);
+
+    if (lightIntensivityChange > light.intensity) {
+        light.intensity += 0.03;
+        console.log('mor');
+
+        if (light.intensity > lightIntensivityChange) {
+            randomLight();
+        }
+    } else if (lightIntensivityChange < light.intensity) {
+        light.intensity -= 0.03;
+        console.log('les');
+
+        if (light.intensity < lightIntensivityChange) {
+            randomLight();
+        }
+    }
+
+    setTimeout(tick, 1000 / 60);
+}
+
+function animate() {
+
+
 	requestAnimationFrame( animate );
 	renderer.render( scene, camera );
 }
 animate();
+
+tick();

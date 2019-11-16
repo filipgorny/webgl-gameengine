@@ -29,7 +29,7 @@ module.exports = {
                 quality: 65
               },
               pngquant: {
-                quality: '65-90',
+                quality: [0.9, 1],
                 speed: 4
               },
               gifsicle: {
